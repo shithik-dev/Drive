@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
+import { motion } from 'framer-motion';
+import AnimatedButton from '../components/AnimatedButton';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -29,244 +31,166 @@ const Contact = () => {
     }, 2000);
   };
 
+  const contactMethods = [
+    {
+      icon: <Mail size={24} />,
+      title: 'Email',
+      info: 'support@securedrive.com'
+    },
+    {
+      icon: <Phone size={24} />,
+      title: 'Phone',
+      info: '+1 (555) 123-4567'
+    },
+    {
+      icon: <MapPin size={24} />,
+      title: 'Office',
+      info: '123 Blockchain Street, Web3 City, 10001'
+    }
+  ];
+
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Contact Us</h1>
-        <p style={styles.subtitle}>
-          Have questions about Secure Drive 3.0? We're here to help!
-        </p>
-      </div>
-
-      <div style={styles.content}>
-        <div style={styles.contactInfo}>
-          <h2 style={styles.sectionTitle}>Get in Touch</h2>
-          <p style={styles.sectionDescription}>
-            Our team is always ready to assist you with any questions 
-            about our blockchain-based file storage solution.
+    <div className="min-h-screen bg-dark-blue py-20 px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-16"
+        >
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 glow-text">
+            Contact Us
+          </h1>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Have questions about Secure Drive 3.0? We're here to help!
           </p>
-          
-          <div style={styles.contactMethods}>
-            <div style={styles.contactMethod}>
-              <Mail size={24} color="#667eea" />
-              <div>
-                <h3>Email</h3>
-                <p>support@securedrive.com</p>
-              </div>
-            </div>
-            
-            <div style={styles.contactMethod}>
-              <Phone size={24} color="#667eea" />
-              <div>
-                <h3>Phone</h3>
-                <p>+1 (555) 123-4567</p>
-              </div>
-            </div>
-            
-            <div style={styles.contactMethod}>
-              <MapPin size={24} color="#667eea" />
-              <div>
-                <h3>Office</h3>
-                <p>123 Blockchain Street<br />Web3 City, 10001</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        </motion.div>
 
-        <div style={styles.contactForm}>
-          <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.formRow}>
-              <div style={styles.formGroup}>
-                <label htmlFor="name" style={styles.label}>Full Name</label>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Contact Info */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="glass p-8 rounded-2xl border border-cyan-500/30"
+          >
+            <h2 className="text-2xl font-bold text-white mb-4">Get in Touch</h2>
+            <p className="text-gray-400 mb-8">
+              Our team is always ready to assist you with any questions 
+              about our blockchain-based file storage solution.
+            </p>
+            
+            <div className="space-y-6">
+              {contactMethods.map((method, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + index * 0.1 }}
+                  whileHover={{ x: 5 }}
+                  className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="p-3 bg-cyan-500/20 rounded-lg">
+                    <div className="text-cyan-400">{method.icon}</div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold mb-1">{method.title}</h3>
+                    <p className="text-gray-400 text-sm">{method.info}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Contact Form */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="glass p-8 rounded-2xl border border-cyan-500/30"
+          >
+            <h2 className="text-2xl font-bold text-white mb-6">Send us a Message</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                    placeholder="Enter your email address"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-300 mb-2">
+                  Subject
+                </label>
                 <input
                   type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="subject"
+                  name="subject"
+                  value={formData.subject}
                   onChange={handleChange}
                   required
-                  style={styles.input}
-                  placeholder="Enter your full name"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                  placeholder="Enter the subject"
                 />
               </div>
-              
-              <div style={styles.formGroup}>
-                <label htmlFor="email" style={styles.label}>Email Address</label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
+
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-2">
+                  Message
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  value={formData.message}
                   onChange={handleChange}
                   required
-                  style={styles.input}
-                  placeholder="Enter your email address"
+                  rows="6"
+                  className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all resize-vertical"
+                  placeholder="Tell us how we can help you..."
                 />
               </div>
-            </div>
 
-            <div style={styles.formGroup}>
-              <label htmlFor="subject" style={styles.label}>Subject</label>
-              <input
-                type="text"
-                id="subject"
-                name="subject"
-                value={formData.subject}
-                onChange={handleChange}
-                required
-                style={styles.input}
-                placeholder="Enter the subject"
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label htmlFor="message" style={styles.label}>Message</label>
-              <textarea
-                id="message"
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                required
-                style={styles.textarea}
-                placeholder="Tell us how we can help you..."
-                rows="6"
-              />
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={sending}
-              style={{
-                ...styles.submitButton,
-                ...(sending ? styles.submitButtonDisabled : {})
-              }}
-            >
-              <Send size={20} />
-              {sending ? 'Sending...' : 'Send Message'}
-            </button>
-          </form>
+              <AnimatedButton
+                type="submit"
+                disabled={sending}
+                variant="primary"
+                className="w-full"
+              >
+                <Send size={18} />
+                {sending ? 'Sending...' : 'Send Message'}
+              </AnimatedButton>
+            </form>
+          </motion.div>
         </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '2rem'
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '4rem'
-  },
-  title: {
-    fontSize: '3rem',
-    fontWeight: 'bold',
-    marginBottom: '1rem',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent'
-  },
-  subtitle: {
-    fontSize: '1.25rem',
-    color: '#666',
-    maxWidth: '600px',
-    margin: '0 auto'
-  },
-  content: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '4rem',
-    alignItems: 'start'
-  },
-  contactInfo: {
-    padding: '2rem'
-  },
-  sectionTitle: {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    marginBottom: '1rem',
-    color: '#333'
-  },
-  sectionDescription: {
-    fontSize: '1.1rem',
-    color: '#666',
-    marginBottom: '2rem',
-    lineHeight: '1.6'
-  },
-  contactMethods: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2rem'
-  },
-  contactMethod: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '1rem'
-  },
-  contactForm: {
-    background: 'white',
-    padding: '2.5rem',
-    borderRadius: '12px',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem'
-  },
-  formRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1rem'
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  label: {
-    marginBottom: '0.5rem',
-    fontWeight: '600',
-    color: '#333'
-  },
-  input: {
-    padding: '12px 16px',
-    border: '2px solid #e1e5e9',
-    borderRadius: '8px',
-    fontSize: '16px',
-    transition: 'border-color 0.3s ease'
-  },
-  textarea: {
-    padding: '12px 16px',
-    border: '2px solid #e1e5e9',
-    borderRadius: '8px',
-    fontSize: '16px',
-    resize: 'vertical',
-    minHeight: '120px',
-    transition: 'border-color 0.3s ease',
-    fontFamily: 'inherit'
-  },
-  submitButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    padding: '14px 24px',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    transition: 'transform 0.3s ease'
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed'
-  }
 };
 
 export default Contact;

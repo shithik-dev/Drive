@@ -3,16 +3,24 @@ import { useAuth } from '../contexts/AuthContext';
 import { filesAPI } from '../utils/api';
 import { signMessage, formatFileSize } from '../utils/web3';
 import { 
-  Folder, 
-  File, 
-  Upload, 
-  Plus, 
   Search, 
   Grid, 
   List,
-  Download,
-  Trash2
+  Upload,
+  Bell,
+  User,
+  FolderPlus,
+  X
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Sidebar from '../components/Sidebar';
+import FileCard from '../components/FileCard';
+import FolderCard from '../components/FolderCard';
+import UploadModal from '../components/UploadModal';
+import DragDropArea from '../components/DragDropArea';
+import Loader from '../components/Loader';
+import MetamaskButton from '../components/MetamaskButton';
+import AnimatedButton from '../components/AnimatedButton';
 
 const Dashboard = () => {
   const [files, setFiles] = useState([]);
@@ -22,13 +30,22 @@ const Dashboard = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [newFolderName, setNewFolderName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
 
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
+    if (user?.walletAddress) {
+      setWalletAddress(user.walletAddress);
+    }
     loadFilesAndFolders();
-  }, []);
+  }, [user]);
 
   const loadFilesAndFolders = async () => {
     try {
@@ -47,13 +64,19 @@ const Dashboard = () => {
     }
   };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+    setShowUploadModal(true);
+  };
+
+  const handleFileUpload = async () => {
+    if (!selectedFile) return;
 
     setUploading(true);
+    setUploadProgress(0);
+
     try {
-      const message = `Upload file: ${file.name} at ${Date.now()}`;
+      const message = `Upload file: ${selectedFile.name} at ${Date.now()}`;
       const signature = await signMessage(message, user.walletAddress);
 
       const headers = {
@@ -61,9 +84,26 @@ const Dashboard = () => {
         message
       };
 
-      await filesAPI.uploadFile(file, 'root', headers);
-      await loadFilesAndFolders();
-      setShowUploadModal(false);
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
+      await filesAPI.uploadFile(selectedFile, currentFolder?._id || 'root', headers);
+      
+      setUploadProgress(100);
+      setTimeout(() => {
+        setShowUploadModal(false);
+        setSelectedFile(null);
+        setUploadProgress(0);
+        loadFilesAndFolders();
+      }, 500);
     } catch (error) {
       console.error('Upload error:', error);
       alert('Upload failed: ' + error.message);
@@ -94,454 +134,332 @@ const Dashboard = () => {
     }
   };
 
+  const handleWalletConnect = (address) => {
+    setWalletAddress(address);
+  };
+
+  const filteredFiles = files.filter(file => 
+    file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredFolders = folders.filter(folder => 
+    folder.folderName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   if (loading) {
     return (
-      <div className="loading">
-        <div className="spinner"></div>
+      <div className="min-h-screen bg-dark-blue flex items-center justify-center">
+        <Loader size="lg" />
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <h1 style={styles.title}>My Drive</h1>
-          <p style={styles.subtitle}>
-            Welcome back, {user.email}
-          </p>
-        </div>
-        <div style={styles.headerRight}>
-          <div style={styles.searchBox}>
-            <Search size={20} />
-            <input 
-              type="text" 
-              placeholder="Search files and folders..." 
-              style={styles.searchInput}
+    <div className="flex h-screen bg-dark-blue overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar
+        folders={folders}
+        onCreateFolder={() => setShowFolderModal(true)}
+        onFolderClick={(folder) => setCurrentFolder(folder)}
+        currentFolder={currentFolder}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Navigation */}
+        <header className="bg-dark-blue-alt border-b border-gray-800 px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search files and folders..."
+                  className="w-full pl-12 pr-4 py-2 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* View Toggle */}
+              <div className="flex items-center gap-1 bg-gray-800/50 rounded-lg p-1 border border-gray-700">
+                <button
+                  onClick={() => setView('grid')}
+                  className={`p-2 rounded transition-colors ${
+                    view === 'grid' 
+                      ? 'bg-cyan-500/20 text-cyan-400' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Grid size={20} />
+                </button>
+                <button
+                  onClick={() => setView('list')}
+                  className={`p-2 rounded transition-colors ${
+                    view === 'list' 
+                      ? 'bg-cyan-500/20 text-cyan-400' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <List size={20} />
+                </button>
+              </div>
+
+              {/* MetaMask Button */}
+              {!walletAddress && (
+                <MetamaskButton onConnect={handleWalletConnect} />
+              )}
+
+              {/* Notifications */}
+              <button className="p-2 hover:bg-gray-800 rounded-lg transition-colors relative">
+                <Bell size={20} className="text-gray-400" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-400 rounded-full"></span>
+              </button>
+
+              {/* User Profile */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full flex items-center justify-center">
+                    <User size={18} className="text-white" />
+                  </div>
+                  <span className="text-white text-sm hidden md:block">{user?.email}</span>
+                </button>
+
+                <AnimatePresence>
+                  {showProfileMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 glass rounded-lg border border-gray-700 overflow-hidden z-50"
+                    >
+                      <div className="p-4 border-b border-gray-700">
+                        <p className="text-white font-semibold text-sm">{user?.email}</p>
+                        {walletAddress && (
+                          <p className="text-gray-400 text-xs font-mono mt-1">
+                            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          logout();
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-red-400 hover:bg-red-500/10 transition-colors"
+                      >
+                        Logout
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {/* Action Bar */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-1">
+                {currentFolder ? currentFolder.folderName : 'My Drive'}
+              </h1>
+              <p className="text-gray-400 text-sm">
+                {files.length} files, {folders.length} folders
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <AnimatedButton
+                onClick={() => setShowFolderModal(true)}
+                variant="outline"
+              >
+                <FolderPlus size={18} />
+                New Folder
+              </AnimatedButton>
+              <AnimatedButton
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.onchange = (e) => handleFileSelect(e.target.files[0]);
+                  input.click();
+                }}
+                variant="primary"
+              >
+                <Upload size={18} />
+                Upload
+              </AnimatedButton>
+            </div>
+          </div>
+
+          {/* Drag & Drop Area */}
+          <div className="mb-6">
+            <DragDropArea
+              onFileSelect={handleFileSelect}
+              disabled={uploading}
             />
           </div>
-          <div style={styles.viewControls}>
-            <button 
-              style={{
-                ...styles.viewButton,
-                ...(view === 'grid' ? styles.viewButtonActive : {})
-              }}
-              onClick={() => setView('grid')}
-            >
-              <Grid size={20} />
-            </button>
-            <button 
-              style={{
-                ...styles.viewButton,
-                ...(view === 'list' ? styles.viewButtonActive : {})
-              }}
-              onClick={() => setView('list')}
-            >
-              <List size={20} />
-            </button>
-          </div>
-          <button 
-            style={styles.primaryButton}
-            onClick={() => setShowFolderModal(true)}
-          >
-            <Plus size={20} />
-            New Folder
-          </button>
-          <button 
-            style={styles.primaryButton}
-            onClick={() => setShowUploadModal(true)}
-          >
-            <Upload size={20} />
-            Upload
-          </button>
-        </div>
-      </div>
 
-      <div style={styles.content}>
-        {/* Folders Section */}
-        {folders.length > 0 && (
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>Folders</h2>
-            <div style={view === 'grid' ? styles.gridView : styles.listView}>
-              {folders.map((folder, index) => (
-                <div key={index} style={view === 'grid' ? styles.gridItem : styles.listItem}>
-                  <div style={styles.itemIcon}>
-                    <Folder size={view === 'grid' ? 48 : 24} color="#667eea" />
-                  </div>
-                  <div style={styles.itemInfo}>
-                    <h3 style={styles.itemName}>{folder.folderName}</h3>
-                    <p style={styles.itemMeta}>
-                      Created {new Date(parseInt(folder.createdTime) * 1000).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div style={styles.itemActions}>
-                    <button style={styles.actionButton}>
-                      <Download size={16} />
-                    </button>
-                    <button style={styles.actionButton}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+          {/* Folders Section */}
+          {filteredFolders.length > 0 && (
+            <section className="mb-8">
+              <h2 className="text-lg font-semibold text-white mb-4">Folders</h2>
+              <div className={view === 'grid' 
+                ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
+                : 'space-y-2'
+              }>
+                {filteredFolders.map((folder, index) => (
+                  <FolderCard
+                    key={index}
+                    folder={folder}
+                    view={view}
+                    onOpen={() => setCurrentFolder(folder)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {/* Files Section */}
-        {files.length > 0 && (
-          <section style={styles.section}>
-            <h2 style={styles.sectionTitle}>Files</h2>
-            <div style={view === 'grid' ? styles.gridView : styles.listView}>
-              {files.map((file, index) => (
-                <div key={index} style={view === 'grid' ? styles.gridItem : styles.listItem}>
-                  <div style={styles.itemIcon}>
-                    <File size={view === 'grid' ? 48 : 24} color="#764ba2" />
-                  </div>
-                  <div style={styles.itemInfo}>
-                    <h3 style={styles.itemName}>{file.fileName}</h3>
-                    <p style={styles.itemMeta}>
-                      {formatFileSize(parseInt(file.fileSize))} • 
-                      {file.fileType} • 
-                      Uploaded {new Date(parseInt(file.uploadTime) * 1000).toLocaleDateString()}
-                    </p>
-                    <p style={styles.ipfsHash}>
-                      IPFS: {file.ipfsHash}
-                    </p>
-                  </div>
-                  <div style={styles.itemActions}>
-                    <button style={styles.actionButton}>
-                      <Download size={16} />
-                    </button>
-                    <button style={styles.actionButton}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+          {/* Files Section */}
+          {filteredFiles.length > 0 && (
+            <section>
+              <h2 className="text-lg font-semibold text-white mb-4">Files</h2>
+              <div className={view === 'grid' 
+                ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
+                : 'space-y-2'
+              }>
+                {filteredFiles.map((file, index) => (
+                  <FileCard
+                    key={index}
+                    file={file}
+                    view={view}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-        {files.length === 0 && folders.length === 0 && (
-          <div style={styles.emptyState}>
-            <File size={64} color="#ccc" />
-            <h3>No files or folders yet</h3>
-            <p>Upload your first file or create a folder to get started</p>
-            <div style={styles.emptyStateActions}>
-              <button 
-                style={styles.primaryButton}
-                onClick={() => setShowUploadModal(true)}
-              >
-                <Upload size={20} />
-                Upload Files
-              </button>
-              <button 
-                style={styles.primaryButton}
-                onClick={() => setShowFolderModal(true)}
-              >
-                <Plus size={20} />
-                Create Folder
-              </button>
+          {/* Empty State */}
+          {filteredFiles.length === 0 && filteredFolders.length === 0 && (
+            <div className="text-center py-20">
+              <div className="inline-block p-6 bg-gray-800/50 rounded-full mb-4">
+                <Upload size={48} className="text-gray-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">No files or folders yet</h3>
+              <p className="text-gray-400 mb-6">Upload your first file or create a folder to get started</p>
+              <div className="flex gap-3 justify-center">
+                <AnimatedButton
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.onchange = (e) => handleFileSelect(e.target.files[0]);
+                    input.click();
+                  }}
+                  variant="primary"
+                >
+                  <Upload size={18} />
+                  Upload Files
+                </AnimatedButton>
+                <AnimatedButton
+                  onClick={() => setShowFolderModal(true)}
+                  variant="outline"
+                >
+                  <FolderPlus size={18} />
+                  Create Folder
+                </AnimatedButton>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </main>
       </div>
 
       {/* Upload Modal */}
-      {showUploadModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h3>Upload File</h3>
-            <p>Select a file to upload to Secure Drive 3.0</p>
-            <input 
-              type="file" 
-              onChange={handleFileUpload}
-              disabled={uploading}
-              style={styles.fileInput}
-            />
-            {uploading && (
-              <div style={styles.uploading}>
-                <div className="spinner" style={styles.smallSpinner}></div>
-                <span>Uploading and signing transaction...</span>
-              </div>
-            )}
-            <div style={styles.modalActions}>
-              <button 
-                onClick={() => setShowUploadModal(false)}
-                style={styles.secondaryButton}
-                disabled={uploading}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <UploadModal
+        isOpen={showUploadModal}
+        onClose={() => {
+          if (!uploading) {
+            setShowUploadModal(false);
+            setSelectedFile(null);
+            setUploadProgress(0);
+          }
+        }}
+        onUpload={handleFileUpload}
+        fileName={selectedFile?.name}
+        progress={uploadProgress}
+        uploading={uploading}
+      />
 
       {/* Create Folder Modal */}
-      {showFolderModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h3>Create New Folder</h3>
-            <input 
-              type="text" 
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Enter folder name"
-              style={styles.textInput}
-            />
-            <div style={styles.modalActions}>
-              <button 
-                onClick={() => setShowFolderModal(false)}
-                style={styles.secondaryButton}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleCreateFolder}
-                style={styles.primaryButton}
-                disabled={!newFolderName.trim()}
-              >
-                Create Folder
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {showFolderModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowFolderModal(false)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass rounded-2xl p-8 max-w-md w-full border border-cyan-500/30"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <FolderPlus className="text-cyan-400" size={24} />
+                  Create New Folder
+                </h2>
+                <button
+                  onClick={() => setShowFolderModal(false)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-gray-400" />
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Enter folder name"
+                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all mb-6"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCreateFolder();
+                  }
+                }}
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFolderModal(false)}
+                  className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <AnimatedButton
+                  onClick={handleCreateFolder}
+                  disabled={!newFolderName.trim()}
+                  variant="primary"
+                  className="flex-1"
+                >
+                  Create Folder
+                </AnimatedButton>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    padding: '2rem',
-    maxWidth: '1200px',
-    margin: '0 auto'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem',
-    flexWrap: 'wrap',
-    gap: '1rem'
-  },
-  headerLeft: {
-    flex: 1
-  },
-  headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    flexWrap: 'wrap'
-  },
-  title: {
-    fontSize: '2.5rem',
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: '0.5rem'
-  },
-  subtitle: {
-    color: '#666',
-    fontSize: '1.1rem'
-  },
-  searchBox: {
-    display: 'flex',
-    alignItems: 'center',
-    background: 'white',
-    border: '2px solid #e1e5e9',
-    borderRadius: '8px',
-    padding: '8px 12px',
-    minWidth: '300px'
-  },
-  searchInput: {
-    border: 'none',
-    outline: 'none',
-    marginLeft: '8px',
-    fontSize: '16px',
-    width: '100%'
-  },
-  viewControls: {
-    display: 'flex',
-    gap: '4px',
-    background: 'white',
-    border: '2px solid #e1e5e9',
-    borderRadius: '8px',
-    padding: '4px'
-  },
-  viewButton: {
-    background: 'none',
-    border: 'none',
-    padding: '8px',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  viewButtonActive: {
-    background: '#667eea',
-    color: 'white'
-  },
-  primaryButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '14px',
-    fontWeight: '600'
-  },
-  secondaryButton: {
-    background: '#6c757d',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer'
-  },
-  content: {
-    minHeight: '400px'
-  },
-  section: {
-    marginBottom: '3rem'
-  },
-  sectionTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    color: '#333'
-  },
-  gridView: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '1.5rem'
-  },
-  listView: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
-  },
-  gridItem: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '1.5rem',
-    textAlign: 'center',
-    cursor: 'pointer',
-    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-    border: '1px solid #e1e5e9'
-  },
-  listItem: {
-    background: 'white',
-    borderRadius: '8px',
-    padding: '1rem 1.5rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    cursor: 'pointer',
-    transition: 'background 0.3s ease',
-    border: '1px solid #e1e5e9'
-  },
-  itemIcon: {
-    display: 'flex',
-    justifyContent: 'center'
-  },
-  itemInfo: {
-    flex: 1,
-    textAlign: 'left'
-  },
-  itemName: {
-    fontSize: '16px',
-    fontWeight: '600',
-    marginBottom: '4px',
-    color: '#333'
-  },
-  itemMeta: {
-    fontSize: '12px',
-    color: '#666',
-    marginBottom: '4px'
-  },
-  ipfsHash: {
-    fontSize: '10px',
-    color: '#999',
-    fontFamily: 'monospace',
-    wordBreak: 'break-all'
-  },
-  itemActions: {
-    display: 'flex',
-    gap: '4px'
-  },
-  actionButton: {
-    background: 'none',
-    border: 'none',
-    padding: '8px',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    color: '#666'
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '4rem 2rem',
-    color: '#666'
-  },
-  emptyStateActions: {
-    display: 'flex',
-    gap: '1rem',
-    justifyContent: 'center',
-    marginTop: '2rem'
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  },
-  modal: {
-    background: 'white',
-    padding: '2rem',
-    borderRadius: '12px',
-    minWidth: '400px',
-    maxWidth: '500px'
-  },
-  fileInput: {
-    width: '100%',
-    margin: '1rem 0'
-  },
-  textInput: {
-    width: '100%',
-    padding: '12px',
-    border: '2px solid #e1e5e9',
-    borderRadius: '8px',
-    fontSize: '16px',
-    margin: '1rem 0'
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '1rem',
-    justifyContent: 'flex-end',
-    marginTop: '1.5rem'
-  },
-  uploading: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    margin: '1rem 0'
-  },
-  smallSpinner: {
-    width: '20px',
-    height: '20px',
-    borderWidth: '2px'
-  }
 };
 
 export default Dashboard;

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Mail, Lock, Shield } from 'lucide-react';
+import { motion } from 'framer-motion';
+import AnimatedButton from '../components/AnimatedButton';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +21,7 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -41,143 +45,122 @@ const Login = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Welcome Back</h2>
-        <p style={styles.subtitle}>Sign in to your Secure Drive 3.0 account</p>
+    <div className="min-h-screen bg-dark-blue flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{
+            x: [0, 100, 0],
+            y: [0, 100, 0],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+          className="absolute top-20 left-20 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            x: [0, -100, 0],
+            y: [0, -100, 0],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+          className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
+        />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="glass rounded-2xl p-8 md:p-12 w-full max-w-md border border-cyan-500/30 relative z-10"
+      >
+        <div className="text-center mb-8">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring" }}
+            className="inline-block p-4 bg-cyan-500/20 rounded-2xl mb-4"
+          >
+            <Shield size={48} className="text-cyan-400" />
+          </motion.div>
+          <h2 className="text-3xl font-bold text-white mb-2 glow-text">Welcome Back</h2>
+          <p className="text-gray-400">Sign in to your Secure Drive 3.0 account</p>
+        </div>
         
         {error && (
-          <div style={styles.error}>
-            {error}
-          </div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg"
+          >
+            <p className="text-red-400 text-sm">{error}</p>
+          </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.formGroup}>
-            <label htmlFor="email" style={styles.label}>Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              style={styles.input}
-              placeholder="Enter your email"
-            />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+              Email
+            </label>
+            <div className="relative">
+              <Mail size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="w-full pl-12 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                placeholder="Enter your email"
+              />
+            </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label htmlFor="password" style={styles.label}>Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              style={styles.input}
-              placeholder="Enter your password"
-            />
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <Lock size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="w-full pl-12 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                placeholder="Enter your password"
+              />
+            </div>
           </div>
 
-          <button 
-            type="submit" 
+          <AnimatedButton
+            type="submit"
             disabled={loading}
-            style={{
-              ...styles.submitButton,
-              ...(loading ? styles.submitButtonDisabled : {})
-            }}
+            variant="primary"
+            className="w-full"
           >
             {loading ? 'Signing In...' : 'Sign In'}
-          </button>
+          </AnimatedButton>
         </form>
 
-        <p style={styles.signupLink}>
-          Don't have an account? <Link to="/signup">Sign up here</Link>
+        <p className="text-center mt-6 text-gray-400">
+          Don't have an account?{' '}
+          <Link to="/signup" className="text-cyan-400 hover:text-cyan-300 font-semibold transition-colors">
+            Sign up here
+          </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    minHeight: 'calc(100vh - 80px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '2rem'
-  },
-  card: {
-    background: 'white',
-    padding: '3rem',
-    borderRadius: '12px',
-    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-    width: '100%',
-    maxWidth: '450px'
-  },
-  title: {
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: '0.5rem',
-    color: '#333'
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: '2rem'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem'
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  label: {
-    marginBottom: '0.5rem',
-    fontWeight: '600',
-    color: '#333'
-  },
-  input: {
-    padding: '12px 16px',
-    border: '2px solid #e1e5e9',
-    borderRadius: '8px',
-    fontSize: '16px',
-    transition: 'border-color 0.3s ease'
-  },
-  submitButton: {
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: 'white',
-    border: 'none',
-    padding: '14px',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'transform 0.3s ease'
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed'
-  },
-  error: {
-    background: '#ffeaea',
-    color: '#d32f2f',
-    padding: '12px',
-    borderRadius: '8px',
-    marginBottom: '1rem',
-    border: '1px solid #ffcdd2'
-  },
-  signupLink: {
-    textAlign: 'center',
-    marginTop: '2rem',
-    color: '#666'
-  }
 };
 
 export default Login;
