@@ -5,10 +5,32 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
+// Configure CORS properly
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'signature', 'message']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    status: 'success',
+    message: 'Secure Drive 3.0 Backend API',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      auth: '/api/auth',
+      files: '/api/files',
+      health: '/api/health'
+    }
+  });
+});
+
+// MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/secure-drive', {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -16,17 +38,34 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/secure-dr
 .then(() => console.log('✅ MongoDB connected successfully'))
 .catch(err => console.log('❌ MongoDB connection error:', err));
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const fileRoutes = require('./routes/files');
+// API routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/files', require('./routes/files'));
 
-app.use('/api/auth', authRoutes);
-app.use('/api/files', fileRoutes);
-
+// Health check
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'success',
-    message: 'Secure Drive 3.0 API is running'
+    message: 'Secure Drive 3.0 API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'API endpoint not found'
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+  res.status(500).json({
+    status: 'error',
+    message: 'Internal server error'
   });
 });
 

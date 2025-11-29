@@ -4,12 +4,12 @@ let web3;
 
 export const initWeb3 = async () => {
   if (window.ethereum) {
-    web3 = new Web3(window.ethereum);
     try {
+      web3 = new Web3(window.ethereum);
       await window.ethereum.request({ method: 'eth_requestAccounts' });
       return web3;
     } catch (error) {
-      throw new Error('User denied account access');
+      throw new Error('User denied account access: ' + error.message);
     }
   } else if (window.web3) {
     web3 = new Web3(window.web3.currentProvider);
@@ -21,7 +21,7 @@ export const initWeb3 = async () => {
 
 export const getWeb3 = () => {
   if (!web3) {
-    throw new Error('Web3 not initialized');
+    throw new Error('Web3 not initialized. Please call initWeb3 first.');
   }
   return web3;
 };

@@ -1,11 +1,17 @@
 import axios from 'axios';
 
+// Use absolute URL for API calls
 const API_BASE_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000, // 10 second timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
+// Request interceptor to add auth token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -13,6 +19,19 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response interceptor to handle errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const authAPI = {
   signup: (userData) => api.post('/auth/signup', userData),
@@ -30,6 +49,7 @@ export const filesAPI = {
     api.post('/files/folder', { folderName }, { headers }),
   getFiles: () => api.get('/files/files'),
   getFolders: () => api.get('/files/folders'),
+  getIPFSHealth: () => api.get('/files/ipfs-health'),
 };
 
 export default api;
