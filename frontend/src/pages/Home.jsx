@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Lock, Upload, Globe, ArrowRight, CheckCircle } from 'lucide-react';
+import { Shield, Lock, Upload, Globe, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import FeatureCard from '../components/FeatureCard';
 import AnimatedButton from '../components/AnimatedButton';

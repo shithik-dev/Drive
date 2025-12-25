@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { filesAPI } from '../utils/api';
-import { signMessage, formatFileSize } from '../utils/web3';
+import { signMessage, formatFileSize, initWeb3 } from '../utils/web3';
 import { 
   Search, 
   Grid, 
@@ -21,6 +21,7 @@ import DragDropArea from '../components/DragDropArea';
 import Loader from '../components/Loader';
 import MetamaskButton from '../components/MetamaskButton';
 import AnimatedButton from '../components/AnimatedButton';
+import FileViewer from '../components/FileViewer';
 
 const Dashboard = () => {
   const [files, setFiles] = useState([]);
@@ -37,6 +38,8 @@ const Dashboard = () => {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [viewingFile, setViewingFile] = useState(null);
+  const [showFileViewer, setShowFileViewer] = useState(false);
 
   const { user, logout } = useAuth();
 
@@ -45,6 +48,7 @@ const Dashboard = () => {
       setWalletAddress(user.walletAddress);
     }
     loadFilesAndFolders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadFilesAndFolders = async () => {
@@ -71,11 +75,24 @@ const Dashboard = () => {
 
   const handleFileUpload = async () => {
     if (!selectedFile) return;
+    
+    if (!user?.walletAddress) {
+      alert('Please connect your wallet first');
+      return;
+    }
 
     setUploading(true);
     setUploadProgress(0);
 
     try {
+      // Ensure Web3 is initialized before signing
+      try {
+        await initWeb3();
+      } catch (error) {
+        // Web3 might already be initialized, continue
+        console.warn('Web3 initialization:', error.message);
+      }
+
       const message = `Upload file: ${selectedFile.name} at ${Date.now()}`;
       const signature = await signMessage(message, user.walletAddress);
 
@@ -95,7 +112,8 @@ const Dashboard = () => {
         });
       }, 200);
 
-      await filesAPI.uploadFile(selectedFile, currentFolder?._id || 'root', headers);
+      const folderId = currentFolder?._id || currentFolder?.id || 'root';
+      await filesAPI.uploadFile(selectedFile, folderId, headers);
       
       setUploadProgress(100);
       setTimeout(() => {
@@ -114,8 +132,21 @@ const Dashboard = () => {
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return;
+    
+    if (!user?.walletAddress) {
+      alert('Please connect your wallet first');
+      return;
+    }
 
     try {
+      // Ensure Web3 is initialized before signing
+      try {
+        await initWeb3();
+      } catch (error) {
+        // Web3 might already be initialized, continue
+        console.warn('Web3 initialization:', error.message);
+      }
+
       const message = `Create folder: ${newFolderName} at ${Date.now()}`;
       const signature = await signMessage(message, user.walletAddress);
 
@@ -138,12 +169,37 @@ const Dashboard = () => {
     setWalletAddress(address);
   };
 
+  const handleFileDownload = async (file) => {
+    try {
+      if (!file.ipfsHash) {
+        alert('File IPFS hash not found. Cannot download.');
+        return;
+      }
+      
+      console.log('📥 Downloading file:', file.fileName);
+      await filesAPI.downloadFile(file.ipfsHash, file.fileName);
+      console.log('✅ File download initiated');
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Download failed: ' + error.message);
+    }
+  };
+
+  const handleFileView = (file) => {
+    if (!file?.ipfsHash) {
+      alert('File IPFS hash not found. Cannot view.');
+      return;
+    }
+    setViewingFile(file);
+    setShowFileViewer(true);
+  };
+
   const filteredFiles = files.filter(file => 
-    file.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+    file?.fileName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredFolders = folders.filter(folder => 
-    folder.folderName.toLowerCase().includes(searchQuery.toLowerCase())
+    folder?.folderName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -287,7 +343,11 @@ const Dashboard = () => {
                 onClick={() => {
                   const input = document.createElement('input');
                   input.type = 'file';
-                  input.onchange = (e) => handleFileSelect(e.target.files[0]);
+                  input.onchange = (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileSelect(e.target.files[0]);
+                    }
+                  };
                   input.click();
                 }}
                 variant="primary"
@@ -339,6 +399,12 @@ const Dashboard = () => {
                     key={index}
                     file={file}
                     view={view}
+                    onDownload={handleFileDownload}
+                    onView={handleFileView}
+                    onDelete={(file) => {
+                      // TODO: Implement delete functionality
+                      console.log('Delete file:', file);
+                    }}
                   />
                 ))}
               </div>
@@ -358,7 +424,11 @@ const Dashboard = () => {
                   onClick={() => {
                     const input = document.createElement('input');
                     input.type = 'file';
-                    input.onchange = (e) => handleFileSelect(e.target.files[0]);
+                    input.onchange = (e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileSelect(e.target.files[0]);
+                      }
+                    };
                     input.click();
                   }}
                   variant="primary"
@@ -393,6 +463,16 @@ const Dashboard = () => {
         fileName={selectedFile?.name}
         progress={uploadProgress}
         uploading={uploading}
+      />
+
+      {/* File Viewer Modal */}
+      <FileViewer
+        isOpen={showFileViewer}
+        onClose={() => {
+          setShowFileViewer(false);
+          setViewingFile(null);
+        }}
+        file={viewingFile}
       />
 
       {/* Create Folder Modal */}

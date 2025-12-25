@@ -3,7 +3,11 @@ import { Folder, Download, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const FolderCard = ({ folder, view = 'grid', onOpen, onDelete }) => {
-  const folderDate = new Date(parseInt(folder.createdTime) * 1000).toLocaleDateString();
+  if (!folder) return null;
+  
+  const folderDate = folder.createdTime 
+    ? new Date(parseInt(folder.createdTime) * 1000).toLocaleDateString()
+    : 'Unknown date';
 
   if (view === 'list') {
     return (

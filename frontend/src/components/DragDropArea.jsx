@@ -29,13 +29,14 @@ const DragDropArea = ({ onFileSelect, disabled = false }) => {
 
     if (disabled) return;
 
-    const files = Array.from(e.dataTransfer.files);
+    const files = Array.from(e.dataTransfer.files || []);
     if (files.length > 0 && onFileSelect) {
       onFileSelect(files[0]);
     }
   };
 
   const handleFileInput = (e) => {
+    if (!e.target.files) return;
     const files = Array.from(e.target.files);
     if (files.length > 0 && onFileSelect) {
       onFileSelect(files[0]);

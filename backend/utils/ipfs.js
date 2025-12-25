@@ -1,60 +1,131 @@
-const axios = require('axios');
-const FormData = require('form-data');
-const fs = require('fs');
+// Use dynamic import for ESM module in CommonJS context
+let ipfsClient = null;
+
+async function getIPFSClient() {
+  if (!ipfsClient) {
+    const { create } = await import('ipfs-http-client');
+    ipfsClient = create({ url: 'http://127.0.0.1:5001/api/v0' });
+  }
+  return ipfsClient;
+}
 
 class IPFSService {
   constructor() {
-    this.baseURL = 'http://localhost:5001/api/v0';
+    // Gateway URLs
+    this.localGateway = 'http://127.0.0.1:8080/ipfs';
+    this.publicGateway = 'https://ipfs.io/ipfs';
+    // Initialize client lazily on first use
+    this._clientPromise = null;
   }
 
-  async uploadFile(fileBuffer) {
+  async _getClient() {
+    if (!this._clientPromise) {
+      this._clientPromise = getIPFSClient();
+    }
+    return await this._clientPromise;
+  }
+
+  async uploadFile(fileBuffer, fileName = 'uploaded-file') {
     try {
-      const formData = new FormData();
-      formData.append('file', fileBuffer, {
-        filename: 'uploaded-file',
-        contentType: 'application/octet-stream'
+      console.log('📤 Uploading file to IPFS...');
+
+      const client = await this._getClient();
+
+      // Upload file to IPFS using ipfs-http-client
+      const result = await client.add(fileBuffer, {
+        pin: true,
+        wrapWithDirectory: false
       });
 
-      const response = await axios.post(`${this.baseURL}/add`, formData, {
-        headers: {
-          ...formData.getHeaders(),
-        },
-        timeout: 30000 // 30 seconds timeout
+      const cid = result.cid.toString();
+      console.log('✅ File uploaded with CID:', cid);
+
+      // Ensure folder exists in MFS so WebUI shows file
+      await this.ensureMFSFolder('/uploads', client);
+
+      const mfsPath = `/uploads/${fileName}`;
+
+      // Save file into MFS (makes it visible in webui/files)
+      await client.files.write(mfsPath, fileBuffer, {
+        create: true,
+        parents: true
       });
 
-      console.log('✅ File uploaded to IPFS with CID:', response.data.Hash);
+      console.log('📁 File stored in IPFS MFS at:', mfsPath);
+
       return {
-        cid: response.data.Hash,
-        path: response.data.Name,
-        size: response.data.Size
+        cid,
+        path: result.path || fileName,
+        mfsPath,
+        size: result.size || fileBuffer.length,
+        gatewayURL: `${this.localGateway}/${cid}`
       };
+
     } catch (error) {
       console.error('❌ IPFS upload error:', error.message);
-      throw new Error(`IPFS upload failed: ${error.message}`);
+
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('fetch')) {
+        throw new Error('IPFS daemon not running. Start using: ipfs daemon');
+      }
+
+      throw error;
+    }
+  }
+
+  async ensureMFSFolder(folder, client) {
+    try {
+      if (!client) {
+        client = await this._getClient();
+      }
+      await client.files.stat(folder);
+    } catch (e) {
+      await client.files.mkdir(folder, { parents: true });
+      console.log('📁 Created MFS folder:', folder);
     }
   }
 
   async getFile(cid) {
     try {
-      const response = await axios.get(`${this.baseURL}/cat?arg=${cid}`, {
-        responseType: 'arraybuffer',
-        timeout: 30000
-      });
+      console.log('📥 Fetching file from IPFS:', cid);
+
+      const client = await this._getClient();
+
+      const chunks = [];
+      for await (const chunk of client.cat(cid)) {
+        chunks.push(chunk);
+      }
+
+      // Convert Uint8Array chunks to Buffer
+      const buffers = chunks.map(chunk => Buffer.from(chunk));
+      const buffer = Buffer.concat(buffers);
       
-      return Buffer.from(response.data);
+      console.log('✅ File retrieved, size:', buffer.length);
+
+      return buffer;
+
     } catch (error) {
       console.error('❌ IPFS retrieval error:', error.message);
-      throw new Error(`IPFS retrieval failed: ${error.message}`);
+
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('fetch')) {
+        throw new Error('IPFS daemon offline.');
+      }
+
+      throw error;
     }
+  }
+
+  getGatewayUrl(cid, usePublic = false) {
+    return `${usePublic ? this.publicGateway : this.localGateway}/${cid}`;
   }
 
   async checkIPFSConnection() {
     try {
-      await axios.get(`${this.baseURL}/id`, { timeout: 5000 });
-      console.log('✅ IPFS daemon is running');
+      const client = await this._getClient();
+      const node = await client.id();
+      console.log('✅ Connected to IPFS:', node.id);
       return true;
     } catch (error) {
-      console.log('❌ IPFS daemon is not running');
+      console.log('❌ Not connected to IPFS:', error.message);
       return false;
     }
   }

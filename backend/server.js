@@ -6,11 +6,44 @@ require('dotenv').config();
 const app = express();
 
 // Configure CORS properly
+// Allow requests from common development ports
+// In development, allow any localhost port for flexibility
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+  : [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'http://localhost:5173', // Vite default port
+      'http://127.0.0.1:5173'
+    ];
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow any localhost origin for flexibility
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV !== 'production') {
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        return callback(null, true);
+      }
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'signature', 'message']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'signature', 'message', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type', 'Content-Disposition', 'Content-Length'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json());
